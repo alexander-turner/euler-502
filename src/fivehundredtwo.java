@@ -41,7 +41,7 @@ Completed improvements:
 Efficiency:
  * Cache castle even/odd solutions for each w*h combo. Last space in last row can definitely be memoised
  * Complete wrapper function for memoiseCastle
- * Know which castles must be precalculated, add them in the correct order, fibonacci-style.
+ * Know which castles must be pre-calculated, add them in the correct order, fibonacci-style.
  */
 public class fivehundredtwo {
     // width, height
@@ -58,21 +58,13 @@ public class fivehundredtwo {
 
     // IN PROGRESS: castleResults[x][y] stores even and odd solutions for castles of dimensions x by y (counting the base)
     private static Result[][] castleResults = new Result[globalCastle.width+1][globalCastle.height+1];
+    // Set to 1000 as temporary number
+    private static int[][][] blockNumberResults = new int[globalCastle.width+1][globalCastle.height+1][1000];
 
     public static void main(String[] args) {
         prepCachedMovesRec();
         System.out.println("Benchmarks for a " + globalCastle.width + "w x " +
                 globalCastle.height + "h castle:");
-
-		/*long start_time, end_time;
-		double difference;
-		start_time = System.nanoTime();
-		System.out.println(enumerateCastleRec(0).toString() + " castles");
-
-		end_time = System.nanoTime();
-		difference = (end_time - start_time)/1e6;
-		System.out.println("Pruned recursive algorithm: " + difference);
-		*/
 
         int widthBound = globalCastle.width, heightBound = globalCastle.height;
         System.out.println("Iterating over various castle sizes (whose dimensions do not exceed " + widthBound + " by " + heightBound + ")");
@@ -127,7 +119,6 @@ public class fivehundredtwo {
 			System.out.println();
 		}*/
     }
-
 
     // Cache the moves for the current width of globalCastle
     private static void prepCachedMovesRec(){
@@ -267,6 +258,7 @@ public class fivehundredtwo {
     private static Result memoiseCastleCorrect(int spaceIndex){
         Result sum = new Result();
         if(globalCastle.isSolution()){
+            blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.lastID]++;
             if(globalCastle.blockIDEven())
                 sum.incrementEven();
             else
@@ -311,6 +303,7 @@ class Castle{
     // Castle dimensions
     int height, width;
     int current; // the current row index
+    int lastID;
     private int placedInRow[]; // how many blocks have been placed in each row
     int spacesInRow[]; // how many spaces are in each row
     boolean skipSpace; // global flag for knowing when to move to next space
@@ -333,6 +326,7 @@ class Castle{
         this.height = h;
         this.current = this.height-1;
         this.lastIDEven = true;
+        this.lastID = 0;
         this.placedInRow = new int[this.height];
         this.spacesInRow = new int[this.height];
         this.spaces = new ArrayList<>(this.height);
@@ -356,6 +350,8 @@ class Castle{
 
         // Lay the block
         this.lastIDEven = !this.lastIDEven;
+        this.lastID++;
+
         for(int i=m.getIndex(); i<rightSide; i++)
             this.blocks[this.current][i] = true;
 
@@ -430,6 +426,7 @@ class Castle{
 
         // Remove the block
         this.lastIDEven = !this.lastIDEven;
+        this.lastID--;
         for(int i=m.getIndex(); i<rightSide; i++)
             this.blocks[this.current][i] = false;
 
@@ -536,6 +533,7 @@ class Castle{
         return this.lastIDEven;
     }
 
+    // Warning: doesn't check if it has an even number of blocks
     boolean isSolution(){
         return this.placedInRow[0] > 0;
     }
@@ -543,11 +541,6 @@ class Castle{
     // Returns whether the castle has an even number of blocks
     boolean isEvenSolution(){
         return this.isSolution() && this.blockIDEven();
-    }
-
-    // Returns whether the castle has an odd number of blocks
-    public boolean isOddSolution(){
-        return this.isSolution() && !this.blockIDEven();
     }
 
     // Returns whether the current row has room for blocks
