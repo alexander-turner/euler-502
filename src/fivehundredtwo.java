@@ -2,6 +2,10 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
+//TODO: Convert to better documentation system
+//TODO: Split experimental changes into branch
+//TODO: Find a way to visualize per-block number solution distributions
+
 /*
 Project Euler: Problem 502 (faster solution in progress is commented out)
 https://projecteuler.net/problem=502
