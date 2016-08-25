@@ -206,7 +206,7 @@ public class fivehundredtwo {
     private static Result memoiseCastle(int spaceIndex){
         Result sum = new Result();
         if(globalCastle.isSolution()){
-            if(globalCastle.blockIDEven())
+            if(globalCastle.lastIDEven())
                 sum.incrementEven();
             else
                 sum.incrementOdd();
@@ -232,7 +232,7 @@ public class fivehundredtwo {
                 // Usage seems to be correct when it's called, so perhaps it has to do with the flow
                 if(castleResults[spaceSize][projectedHeight] != null) {
                     //globalCastle.display(false);
-                    if(globalCastle.blockIDEven())
+                    if(globalCastle.lastIDEven())
                         sum.addResult(castleResults[spaceSize][projectedHeight].flip());
                     else
                         sum.addResult(castleResults[spaceSize][projectedHeight]);
@@ -262,8 +262,8 @@ public class fivehundredtwo {
     private static Result memoiseCastleCorrect(int spaceIndex){
         Result sum = new Result();
         if(globalCastle.isSolution()){
-            blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.lastID]++;
-            if(globalCastle.blockIDEven())
+            blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.getLastID()]++;
+            if(globalCastle.lastIDEven())
                 sum.incrementEven();
             else
                 sum.incrementOdd();
@@ -307,7 +307,7 @@ class Castle{
     // Castle dimensions
     int height, width;
     int current; // the current row index
-    int lastID;
+    private int lastID; // the ID of the last block placed
     private int placedInRow[]; // how many blocks have been placed in each row
     int spacesInRow[]; // how many spaces are in each row
     boolean skipSpace; // global flag for knowing when to move to next space
@@ -533,7 +533,10 @@ class Castle{
         }
     }
 
-    boolean blockIDEven(){
+    // For data visualization
+    int getLastID() { return this.lastID; }
+
+    boolean lastIDEven(){
         return this.lastIDEven;
     }
 
@@ -544,7 +547,7 @@ class Castle{
 
     // Returns whether the castle has an even number of blocks
     boolean isEvenSolution(){
-        return this.isSolution() && this.blockIDEven();
+        return this.isSolution() && this.lastIDEven();
     }
 
     // Returns whether the current row has room for blocks
