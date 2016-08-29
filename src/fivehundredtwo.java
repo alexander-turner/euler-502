@@ -50,10 +50,10 @@ added to those found by the other branches pursued in this depth-first search of
 
 The requisite functions are provided by the Castle class.
 
-TODO: Convert to better documentation system
+TODO: Fix the correctness of the algorithm (recent change broke the algorithm)
 TODO: Split experimental changes into Git branch
 TODO: Find a way to visualize per-block number solution distributions
-TODO: Cache castle even/odd solutions for each w*h combo. Last space in last row can definitely be memoised
+TODO: Implement ResultTRIE
 TODO: Complete wrapper function for memoiseCastle
 TODO: Know which castles must be pre-calculated and add them in the correct order, Fibonacci-style.
  */
@@ -94,7 +94,6 @@ public class fivehundredtwo {
                     castleResults[i][j] = new Result((j + 1) % 2, j % 2);
                 } else {
                     globalCastle = new Castle(i,j);
-                    globalCastle.display(false);
                     castleResults[i][j] = enumerateCastleRec(0);
                 }
                 castleResults[i][j].display(); // integrate into function itself?
