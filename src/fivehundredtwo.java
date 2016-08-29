@@ -50,12 +50,11 @@ added to those found by the other branches pursued in this depth-first search of
 
 The requisite functions are provided by the Castle class.
 
-TODO: Fix the correctness of the algorithm (recent change broke the algorithm)
 TODO: Split experimental changes into Git branch
 TODO: Find a way to visualize per-block number solution distributions
 TODO: Implement ResultTRIE
 TODO: Complete wrapper function for memoiseCastle
-TODO: Know which castles must be pre-calculated and add them in the correct order, Fibonacci-style.
+TODO: Know which castles must be pre-calculated and add them in the correct order, Fibonacci-style
  */
 public class fivehundredtwo {
     private static Castle globalCastle = new Castle(4, 13);
@@ -134,7 +133,7 @@ public class fivehundredtwo {
         if(globalCastle.isEvenSolution())
             sum.incrementEven();
          */
-        if(globalCastle.areBlocksInCurrentRow()){
+        if(globalCastle.areBlocksInLastRow()){
             // Mark how solutions are distributed across number of blocks used
             blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.getLastID()]++;
             if(globalCastle.lastIDEven())
@@ -229,7 +228,7 @@ public class fivehundredtwo {
      */
     private static Result memoiseCastle(int spaceIndex){
         Result sum = new Result();
-        if(globalCastle.areBlocksInCurrentRow()){
+        if(globalCastle.areBlocksInLastRow()){
             if(globalCastle.lastIDEven())
                 sum.incrementEven();
             else
@@ -513,7 +512,7 @@ class Castle{
         return this.lastIDEven;
     }
 
-    boolean areBlocksInCurrentRow(){
+    boolean areBlocksInLastRow(){
         return this.placedInRow[0] > 0;
     }
 
@@ -522,15 +521,11 @@ class Castle{
     }
 
     boolean isEvenSolution(){
-        return this.inLastRow() &&
-                this.areBlocksInCurrentRow() &&
-                this.lastIDEven();
+        return this.areBlocksInLastRow() && this.lastIDEven();
     }
 
     boolean isOddSolution(){
-        return this.inLastRow() &&
-                this.areBlocksInCurrentRow() &&
-                !this.lastIDEven();
+        return this.areBlocksInLastRow() && !this.lastIDEven();
     }
 
     boolean canAddBlock(){
@@ -538,7 +533,7 @@ class Castle{
     }
 
     boolean canAdvance(){
-        return !this.inLastRow() && this.areBlocksInCurrentRow();
+        return !this.inLastRow() && this.placedInRow[this.current] > 0;
     }
 
     /**
