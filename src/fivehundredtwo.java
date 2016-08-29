@@ -130,7 +130,12 @@ public class fivehundredtwo {
      */
     private static Result enumerateCastleRec(int spaceIndex){
         Result sum = new Result();
-        if(globalCastle.isSolution()){
+
+        /* Normal code:
+        if(globalCastle.isEvenSolution())
+            sum.incrementEven();
+         */
+        if(globalCastle.areBlocksInCurrentRow()){
             // Mark how solutions are distributed across number of blocks used
             blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.getLastID()]++;
             if(globalCastle.lastIDEven())
@@ -216,20 +221,16 @@ public class fivehundredtwo {
      * XX--- XX--X
      * XXXXX XXXXX
      *
-     * but also by each of the spaces and whether they're on the current row (in this case, the third row) or the next
-     * one (0 or 1, respectively). The spaces are invariant to order in this instance and can thus be put into descending
-     * order. For A, the storage would be routed to memoisedResults[2][5][2][0]; for B, to
-     * memoisedResults[5][5][1][1][1][0]. All spaces in the current castle must be taken into consideration to
-     * accurately store and retrieve memoised data.
+     * but also by each of the spaces (categorized by their width and the space above them. The spaces should be put
+     * into descending order by their width and then by their height. For A, the storage would be routed to
+     * memoisedResults[2][5]; for B, to memoisedResults[1][5][1][3]. All spaces in the current castle must be taken
+     * into consideration to accurately store and retrieve memoised data.
      *
-     * Storing this in a TRIE data structure will optimize storage, but I predict that the space complexity will
-     * nonetheless remain prohibitive. Additionally, due to the nature of transferring solutions from a smaller castle
-     * to a larger castle, the odd solution must also be counted; the even and odd solutions must be swapped before addition
-     * to the caller's tally.
-    */
+     * Further specificity is provided in the ResultTRIE documentation.
+     */
     private static Result memoiseCastle(int spaceIndex){
         Result sum = new Result();
-        if(globalCastle.isSolution()){
+        if(globalCastle.areBlocksInCurrentRow()){
             if(globalCastle.lastIDEven())
                 sum.incrementEven();
             else
@@ -285,7 +286,7 @@ public class fivehundredtwo {
 }
 
 /**
- * Interact with a
+ * A robust interface for generating and manipulating Castles.
  */
 class Castle{
     int height, width;
@@ -396,7 +397,6 @@ class Castle{
      * @param spaceIndex the space in which to undo it.
      * @precondition m and spaceIndex describe a block that has already been placed.
      */
-
     void removeBlockUpdate(Move m, int spaceIndex){
         int leftSide = m.getIndex() - 1, rightSide = m.getIndex() + m.getWidth();
         boolean leftInBounds = leftSide >= 0, rightInBounds = rightSide < this.width,
@@ -504,41 +504,49 @@ class Castle{
         this.current--;
     }
 
-    /**
-     * Move back to the prior row in the castle.
-     */
     void retreatRow(){
         this.current++;
     }
 
-    // For data visualization
     int getLastID() { return this.lastID; }
 
     boolean lastIDEven(){
         return this.lastIDEven;
     }
 
-    // Warning: doesn't check if it has an even number of blocks
-    boolean isSolution(){
+    boolean areBlocksInCurrentRow(){
         return this.placedInRow[0] > 0;
     }
 
-    // Returns whether the castle has an even number of blocks
-    boolean isEvenSolution(){
-        return this.isSolution() && this.lastIDEven();
+    boolean inLastRow(){
+        return this.current == 0;
     }
 
-    // Returns whether the current row has room for blocks
+    boolean isEvenSolution(){
+        return this.inLastRow() &&
+                this.areBlocksInCurrentRow() &&
+                this.lastIDEven();
+    }
+
+    boolean isOddSolution(){
+        return this.inLastRow() &&
+                this.areBlocksInCurrentRow() &&
+                !this.lastIDEven();
+    }
+
     boolean canAddBlock(){
         return this.spacesInRow[this.current] > 0;
     }
 
-    // Returns whether we can advance to the next row
     boolean canAdvance(){
-        return this.current > 0 && this.placedInRow[this.current] > 0;
+        return !this.inLastRow() && this.areBlocksInCurrentRow();
     }
 
-    // Display the castle
+    /**
+     * Debugging visualization.
+     *
+     * @param showSpaces toggles whether the current row's spaces are displayed underneath the castle.
+     */
     public void display(boolean showSpaces){
         // Each row
         for(int i = 0; i < this.height; i++) {
@@ -589,7 +597,6 @@ class Castle{
         System.out.println();
     }
 
-    // display spaces for the current level
     private void displaySpaces(){
         System.out.println("Space list for the current row:");
         for(Space s : this.spaces.get(this.current))
@@ -615,7 +622,14 @@ class Move {
     }
 }
 
-class Space{
+/**
+ * @example
+ * Space(2, 3) corresponds to
+ *
+ * X-SSS
+ * XXXXX
+ */
+class Space {
     private int index; // where the space starts
     private int width; // area in which you can place blocks
 
@@ -681,12 +695,16 @@ class Result{
         this.oddSolutions = this.oddSolutions.add(toAdd.oddSolutions);
     }
 
-    // Swap the even and odd solutions of the returned instance
+    /**
+     * Swap the even and odd solutions of the Result.
+     */
     Result flip(){
         return new Result(this.oddSolutions, this.evenSolutions);
     }
 
-    // display {even, odd}
+    /**
+     * Display in the format of {even, odd}
+     */
     void display(){
         System.out.print("{" + evenSolutions.toString() + ", " + oddSolutions.toString() + "}");
     }
@@ -694,18 +712,21 @@ class Result{
 
 /**
  * For each possible distribution of spaces, cache the results.
- * Navigate using a TRIE structure, alternating between width and height for each measurement.
- * A measurement is demarcated by a base block and all of the empty space above it.
+ *
+ * The TRIE data structure optimizes storage efficiency, but I predict that the space complexity will
+ * nonetheless remain prohibitive. Additionally, due to the nature of transferring solutions from a smaller castle
+ * to a larger castle, the odd solution must also be counted; the even and odd solutions must be swapped before addition
+ * to the caller's tally.
+ *
  * Example (X := block, - := inaccessible open space):
  *  -
  *  -
  * X-
  * XXXX
  *
- * These two measurements (format: [w, h]) are: [1,3] and [2,4].
- * The spaces must be sorted by width: [2,4] and [1,3].
- * Representing as an array for simplicity, we access the TRIE with coordinates:
- *  [2][4][1][3]
+ * The TRIE will be accessed by sorting the spaces into descending order (by width and then by height, including
+ * includes the base block below the given space): memoisedResults[w1][h1][w2][h2]. Thus, the above castle can be
+ * represented by [2][4][1][3].
  */
 class ResultTRIE{
     Result data;
@@ -733,20 +754,3 @@ class ResultTRIE{
             return this.children.get(list.remove(0)).getResult(list); // is this destructive of original list?
     }
 }
-
-// Data exploration - spare code
-
-// iterate across a height value
-		/*for(int i = 2; i <= heightBound; i++){
-			for(int j = 1; j <= widthBound; j++){
-			System.out.println("W: " + j + " h: " + i);
-			if(j == 1){ // special case where we can predetermine results
-				castleResults[j][i] = new Result((i + 1) % 2, i % 2);
-			} else {
-				globalCastle = new Castle(j,i);
-				castleResults[j][i] = memoiseCastleCorrect(0);
-			}
-			castleResults[j][i].display(); // integrate into function itself?
-			}
-		System.out.println();
-		}*/
