@@ -39,39 +39,16 @@ The basic idea is to start from a blank slate (dimensions: 3 x 3; X := block, - 
 XXX
 
 and take each option:
-
+      - -    -  - -  -
 XXX XX- -XX X-  -X-  -X
 XXX XXX XXX XXX XXX XXX
 
 We maintain an ArrayList of spaces for both the current and next row, allowing constant-time building / removal
 spot location. After every move, we check to see if the current configuration satisfies the 6 criteria listed above.
 If it does, we add it to the sum tracked for the current iteration of the function, which is eventually returned and
-added to those found by the other branches pursued in this depth-first search of the castle space. We know that
+added to those found by the other branches pursued in this depth-first search of the castle space.
 
-Theoretically, we can memoise results; however, it would entail an enormous space complexity. Let's say we have two
-castles:
-
-XXX-   -XXX
-XXXXX XXXXX
-
-You would imagine that they lead to the same number of solutions - and you'd be right! However, this isn't just
-because they share the same spaces list for the current row; it's because the next row also contains a 3-wide space
-for both castles. So not only do you have to hash the stored results by the dimensions of the part of the castle that
-is under consideration (treating the base as part of the height: [2 (w)][5 (h)]):
-  ---
-  ---
-  ---
-  ---
-XX---
-XXXXX
-
-but also by each of the spaces and whether they're on the current row or the next one (0 or 1, respectively) The spaces
-are invariant to order in this instance and can thus be put into descending order. For the above castle, the storage would look like
-memoisedResults[2][5][2][0].
-
-Storing this in a TRIE data structure will optimize storage, but I predict that the space complexity will nonetheless remain prohibitive.
-Additionally, due to the nature of transferring solutions from a smaller castle to a larger castle, the odd solutions
-must also be counted; the even and odd solutions must be swapped before addition to the caller's tally.
+The requisite functions are provided by the Castle class.
 
 TODO: Convert to better documentation system
 TODO: Split experimental changes into Git branch
@@ -79,31 +56,16 @@ TODO: Find a way to visualize per-block number solution distributions
 TODO: Cache castle even/odd solutions for each w*h combo. Last space in last row can definitely be memoised
 TODO: Complete wrapper function for memoiseCastle
 TODO: Know which castles must be pre-calculated and add them in the correct order, Fibonacci-style.
-
-Completed improvements:
- * DONE: Eliminated need to create an exponential number of duplicate castles
- * DONE: Enabled dynamic updating of spaces
- * DONE: Decrease from n! to something much better by not repeating indices 
- * DONE: Improved correctness of recursive algorithm
- * DONE: Implemented an invalid column array to save up to O(w*h) accesses each advancement
- * DONE: Implemented BigIntegers to accommodate arbitrary-length integers
- * DONE: Store blocks as boolean instead of int to cut castle space requirement by 4
- * DONE: Store the number of spaces in each row to cut out an O(w) operation each iteration
- * DONE: Store whether current ID is even, instead of what the lastID was - save a modulo operation each time
- * DONE: Cleaned up and standardized class methods and variables
- * DONE: Fixed algorithmic correctness. Previously, blocks were treated as if their placement order
-          mattered for generating distinct castles. The order doesn't matter; the algorithm is now 
-          much less complex.
  */
 public class fivehundredtwo {
     private static Castle globalCastle = new Castle(4, 13);
 
-    /*
-     * Purpose:
+    /**
      *  cachedMovesRec[i] contains the moves available for a free space of size i that weren't available
-     *   at the smaller size spaces.
-     *   FORMAT: Move m(column, width)
-     *   e.g. at cachedMoves.get(1): (0,1), (1,1), (2,1), (3,1) for w = 4
+     *  at the smaller size spaces.
+     *
+     *  Move m(column, width)
+     *  e.g. at cachedMoves.get(1): (0,1), (1,1), (2,1), (3,1) for w = 4
      */
     private static List<ArrayList<Move>> cachedMovesRec = new ArrayList<>(globalCastle.width+1);
 
@@ -143,7 +105,9 @@ public class fivehundredtwo {
         }
     }
 
-    // Cache the moves for the current width of globalCastle
+    /**
+     * Cache the moves for the current width of globalCastle.
+     */
     private static void prepCachedMovesRec(){
         cachedMovesRec = new ArrayList<>(globalCastle.width + 1);
         cachedMovesRec.add(new ArrayList<>());
@@ -155,14 +119,14 @@ public class fivehundredtwo {
         }
     }
 
-    /*
-     * Recursively enumerate castles for the current globalCastle.
-     *  Pre-conditions:
-     *   globalCastle is a valid, existing castle.
-     *   cachedMovesRec is generated.
-     *  Post-conditions:
-     *   returns the number of satisfactory castles for the given starting configuration.
-     *  DEBUGGING: also counts the odd-numbered solutions
+    /**
+     * Recursively enumerates castles on globalCastle.
+     *
+     * @param spaceIndex the space currently being operated in is in the spaceIndex-nth position of globalCastle's
+     *                   spaces ArrayList.
+     * @precondition globalCastle exists.
+     * @precondition prepCachedMovesRec has been run.
+     * @return sum a Result containing the number of even- and odd-block-numbered castles matching the given criteria
      */
     private static Result enumerateCastleRec(int spaceIndex){
         Result sum = new Result();
@@ -208,7 +172,9 @@ public class fivehundredtwo {
     }
 
 
-    // IN PROGRESS: wrapper for the memoiseCastle function
+    /**
+     * IN PROGRESS: wrapper for the memoiseCastle function
+     */
     private static Result memoiseCastleWrapper(int w, int h){
         // we can calculate this kind of castle by formula
         if(w == 1)
@@ -222,10 +188,45 @@ public class fivehundredtwo {
         return memoiseCastle(0);
     }
 
-    /* IN PROGRESS: try speeding up the process by storing results for each castle size
-     *  and using that information to calculate how many combinations are possible from
+    /**
+     * Store results for each castle size and use that information to calculate how many combinations are possible from
      *  a given configuration.
-     */
+     *
+     * @param spaceIndex the space currently being operated in is in the spaceIndex-nth position of globalCastle's
+     *                   spaces ArrayList.
+     *
+     * @return sum a Result
+     *
+     * @theory
+     * In principle, we can memoise results; however, it would entail an enormous space complexity. Let's say we have
+     * two castles:
+     *    -   -
+     * XXX-   -XXX
+     * XXXXX XXXXX
+     *
+     * You would imagine that they lead to the same number of solutions - and you'd be right! However, this isn't just
+     * because they share the same spaces list for the current row; it's because the next row also contains a 3-wide
+     * space for both castles. So not only do you have to hash the stored results by the dimensions of the part of the
+     * castle that is under consideration (treating the base as part of the height: [2 (w)][5 (h)]):
+     * A:   B:
+     *   ---  ---
+     *   ---  ---
+     *   ---  ---
+     *   --- X---
+     * XX--- XX--X
+     * XXXXX XXXXX
+     *
+     * but also by each of the spaces and whether they're on the current row (in this case, the third row) or the next
+     * one (0 or 1, respectively). The spaces are invariant to order in this instance and can thus be put into descending
+     * order. For A, the storage would be routed to memoisedResults[2][5][2][0]; for B, to
+     * memoisedResults[5][5][1][1][1][0]. All spaces in the current castle must be taken into consideration to
+     * accurately store and retrieve memoised data.
+     *
+     * Storing this in a TRIE data structure will optimize storage, but I predict that the space complexity will
+     * nonetheless remain prohibitive. Additionally, due to the nature of transferring solutions from a smaller castle
+     * to a larger castle, the odd solution must also be counted; the even and odd solutions must be swapped before addition
+     * to the caller's tally.
+    */
     private static Result memoiseCastle(int spaceIndex){
         Result sum = new Result();
         if(globalCastle.isSolution()){
@@ -283,8 +284,10 @@ public class fivehundredtwo {
     }
 }
 
+/**
+ * Interact with a
+ */
 class Castle{
-    // Castle dimensions
     int height, width;
     int current; // the current row index
     private int lastID; // the ID of the last block placed
@@ -292,19 +295,20 @@ class Castle{
     int spacesInRow[]; // how many spaces are in each row
     boolean skipSpace; // global flag for knowing when to move to next space
     private boolean lastIDEven; // track whether the ID of the last block placed is even
-    private boolean unavailableColumn[];
+    private boolean unavailableColumn[]; // Tracks columns that aren't available - saves up to height operations / call
     List<ArrayList<Space>> spaces; // track available spaces for each level - update while placing / removing blocks
+    private boolean[][] blocks; // True if a block exists there.
 
-    /*
-     *  Tracks block IDs.
-     *   true if a block is there
-     */
-    private boolean[][] blocks;
-
-    /* Construct a Castle with only the bottom row filled in
-     * Pre-condition: h > 0 && w > 0
+    /**
+     * Construct a Castle with the bottom row filled in.
+     *
+     * @param w the width of the Castle
+     * @param h the height of the Castle
+     * @precondition w > 0
+     * @precondition h > 0
      */
     Castle(int w, int h){
+        // Initialization
         this.width = w;
         this.unavailableColumn = new boolean[this.width];
         this.height = h;
@@ -318,19 +322,28 @@ class Castle{
             this.spaces.add(new ArrayList<>());
         this.skipSpace = false;
         this.blocks = new boolean[this.height][this.width];
+
         // Place first space and block
         this.spaces.get(this.current).add(new Space(0, this.width));
         this.spacesInRow[this.current]++;
-        placeBlockUpdate(new Move(0, this.width), 0); // remove for a bit of efficiency? just pretend it's there
-        // Leave first row
+        placeBlockUpdate(new Move(0, this.width), 0);
+
+        // Leave the first row
         this.current--;
     }
 
-    /* Assumes that the space is open since the input is given as a constructed Move
-     * Returns index of first space (-1 if no spaces remain)
+    /**
+     * Robust block placement using constant-time space-navigation logic.
+     *
+     * @param m a Move describing the new block to be placed
+     * @param spaceIndex the space currently being operated in is in the spaceIndex-nth position of globalCastle's
+     *                   spaces ArrayList.
+     * @precondition m and spaceIndex describe a valid Move in a valid space
+     * @return newIndex index of left space created by the displacement m causes in the space. If no spaces remain,
+     * -1 is returned.
      */
     int placeBlockUpdate(Move m, int spaceIndex){
-        int leftSide = m.getIndex() - 1, rightSide = m.getIndex() + m.getWidth(), returnVal;
+        int leftSide = m.getIndex() - 1, rightSide = m.getIndex() + m.getWidth(), newIndex;
 
         // Lay the block
         this.lastIDEven = !this.lastIDEven;
@@ -356,7 +369,7 @@ class Castle{
         boolean modifyLeft = leftSide > s.getIndex(),
                 // if space ends past the right bound of the move
                 modifyRight = rightSide+1 < s.getIndex()+s.getWidth();
-        returnVal = spaceIndex;
+        newIndex = spaceIndex;
         // Modify current level's spaces
         if(modifyLeft) {
             this.spaces.get(this.current).add(spaceIndex++, new Space(s.getIndex(), leftSide-s.getIndex()));
@@ -373,10 +386,17 @@ class Castle{
         //if(originalSpaces < this.spacesInRow[this.current])
         //	this.skipSpace = true;
 
-        return returnVal;
+        return newIndex;
     }
 
-    // Removes the block and merges the surrounding space(s)
+    /**
+     * Removes the block and merges the surrounding space(s).
+     *
+     * @param m the Move to be undone.
+     * @param spaceIndex the space in which to undo it.
+     * @precondition m and spaceIndex describe a block that has already been placed.
+     */
+
     void removeBlockUpdate(Move m, int spaceIndex){
         int leftSide = m.getIndex() - 1, rightSide = m.getIndex() + m.getWidth();
         boolean leftInBounds = leftSide >= 0, rightInBounds = rightSide < this.width,
@@ -458,11 +478,10 @@ class Castle{
     }
 
 
-    /*
-     * Add or remove the space to/from the row above the given move.
-     *  If already on the last row, does nothing.
-     * Pre-conditions:
-     *  If a remove operation is desired, the space must be last in the LinkedList.
+    /**
+     * Add or remove the space to/from the row above the given move. If already on the last row, does nothing.
+     *
+     * @precondition if a remove operation is desired, the space must be last in the LinkedList.
      */
     private void modifySpaceAbove(Move m, boolean addTrue){
         int above = this.current - 1;
@@ -471,46 +490,25 @@ class Castle{
         if(addTrue){
             this.spaces.get(above).add(new Space(m.getIndex(), m.getWidth()));
             this.spacesInRow[above]++;
-        }
-        else {
+        } else {
             this.spaces.get(above).remove(spaces.get(above).size() - 1);
             this.spacesInRow[above]--;
         }
     }
 
 
-    /*
-     * Purpose:
-     *  Move on to the next row in the castle; stop placing blocks at the current row.
-     * Post-conditions:
-     *  For every value zero or below in the current row, decrement and decrement above it
+    /**
+     * Advance to the next row in the castle - that is, stop placing blocks in the current row.
      */
     void advanceRow(){
-        int endIndex;
-        for(Space s : this.spaces.get(this.current)){
-            endIndex = s.getIndex() + s.getWidth();
-            for(int i = s.getIndex(); i < endIndex; i++)
-                this.unavailableColumn[i] = true;
-        }
         this.current--;
     }
 
-    /*
-     * Purpose:
-     *  Move back to the prior row in the castle; reverse effects of finishing the prior row.
-     * Post-conditions:
-     *  Re-validates columns previously unavailable due to spaces / clears all rows above with zeroes
+    /**
+     * Move back to the prior row in the castle.
      */
     void retreatRow(){
-        this.placedInRow[this.current] = 0;
         this.current++;
-
-        int endIndex;
-        for(Space s : this.spaces.get(this.current)){
-            endIndex = s.getIndex() + s.getWidth();
-            for(int i = s.getIndex(); i < endIndex; i++)
-                this.unavailableColumn[i] = false;
-        }
     }
 
     // For data visualization
@@ -647,6 +645,10 @@ class Space{
     }
 }
 
+/**
+ * Allows manipulation of the twin data points required by memoisation. Scales infinitely past the limits of the
+ * Integer type.
+ */
 class Result{
     private BigInteger evenSolutions;
     private BigInteger oddSolutions;
@@ -690,16 +692,17 @@ class Result{
     }
 }
 
-/*
+/**
  * For each possible distribution of spaces, cache the results.
  * Navigate using a TRIE structure, alternating between width and height for each measurement.
  * A measurement is demarcated by a base block and all of the empty space above it.
- * Example (spaces highlighted by X):
- *  X XX
- *  X XX
- *  █ XX
- *  ████
- * These two measurements (format: [w,h]) are: [1,3] and [2,4].
+ * Example (X := block, - := inaccessible open space):
+ *  -
+ *  -
+ * X-
+ * XXXX
+ *
+ * These two measurements (format: [w, h]) are: [1,3] and [2,4].
  * The spaces must be sorted by width: [2,4] and [1,3].
  * Representing as an array for simplicity, we access the TRIE with coordinates:
  *  [2][4][1][3]
