@@ -2,15 +2,11 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-//TODO: Convert to better documentation system
-//TODO: Split experimental changes into branch
-//TODO: Find a way to visualize per-block number solution distributions
-
 /*
-Project Euler: Problem 502 (faster solution in progress is commented out)
-https://projecteuler.net/problem=502
+Project Euler: Problem 502 - https://projecteuler.net/problem=502
  
-A block is defined as a rectangle with a height of 1 and an integer-valued length. Let a castle be a configuration of stacked blocks.
+A block is defined as a rectangle with a height of 1 and an integer-valued length.
+Let a castle be a configuration of stacked blocks.
 
 Given a game grid that is w units wide and h units tall, a castle is generated according to the following rules:
 
@@ -21,11 +17,68 @@ Given a game grid that is w units wide and h units tall, a castle is generated a
 5 The maximum achieved height of the entire castle is exactly h.
 6 The castle is made from an even number of blocks.
 
-Let F(w,h) represent the number of valid castles, given grid parameters w and h.
-For example, F(4,2) = 10, F(13,10) = 3729050610636, F(10,13) = 37959702514, and F(100,100) mod 1 000 000 007 = 841913936.
+Let F(w, h) represent the number of valid castles, given grid parameters w and h.
+For example, F(4, 2) = 10, F(13, 10) = 3729050610636, F(10, 13) = 37959702514, and F(100, 100) mod 1 000 000 007 =
+841913936.
 
-Summary: the algorithm calculates the number of castles on a w*h grid which satisfy the above conditions. 
-The algorithm must be fast enough to calculate (F(1012,100) + F(10000,10000) + F(100,1012)) mod 1 000 000 007.
+Summary:
+The algorithm calculates the number of castles on a w*h grid which satisfy the above conditions.
+The algorithm must be fast enough to calculate (F(1012, 100) + F(10000, 10000) + F(100, 1012)) mod 1 000 000 007.
+
+Lengthy explanation of approach and rationale:
+This problem deals with finding permutations on a w*h grid that meet a precise set of criteria (see 1-6 above). My
+proposed solution is wholly inadequate for finding (F(1012, 100) + F(10000, 10000) + F(100, 1012)) mod 1 000 000 007 -
+to my mind, no optimization would be enough. Due to the exponential nature of the castle's state space, I suspect
+that an equation is required. Thanks to the BigInteger library, this solution could even be recursive (à la Fibonnaci
+Sequence). However, all of my attempts to derive an equation thus far for widths / heights beyond 3 have failed.
+This program is thus an exploration of the state space in hopes of obtaining a better understanding.
+
+The basic idea is to start from a blank slate (dimensions: 3 x 3; X := block, - := unavailable open space):
+
+
+XXX
+
+and take each option:
+
+XXX XX- -XX X-  -X-  -X
+XXX XXX XXX XXX XXX XXX
+
+We maintain an ArrayList of spaces for both the current and next row, allowing constant-time building / removal
+spot location. After every move, we check to see if the current configuration satisfies the 6 criteria listed above.
+If it does, we add it to the sum tracked for the current iteration of the function, which is eventually returned and
+added to those found by the other branches pursued in this depth-first search of the castle space. We know that
+
+Theoretically, we can memoise results; however, it would entail an enormous space complexity. Let's say we have two
+castles:
+
+XXX-   -XXX
+XXXXX XXXXX
+
+You would imagine that they lead to the same number of solutions - and you'd be right! However, this isn't just
+because they share the same spaces list for the current row; it's because the next row also contains a 3-wide space
+for both castles. So not only do you have to hash the stored results by the dimensions of the part of the castle that
+is under consideration (treating the base as part of the height: [2 (w)][5 (h)]):
+  ---
+  ---
+  ---
+  ---
+XX---
+XXXXX
+
+but also by each of the spaces and whether they're on the current row or the next one (0 or 1, respectively) The spaces
+are invariant to order in this instance and can thus be put into descending order. For the above castle, the storage would look like
+memoisedResults[2][5][2][0].
+
+Storing this in a TRIE data structure will optimize storage, but I predict that the space complexity will nonetheless remain prohibitive.
+Additionally, due to the nature of transferring solutions from a smaller castle to a larger castle, the odd solutions
+must also be counted; the even and odd solutions must be swapped before addition to the caller's tally.
+
+TODO: Convert to better documentation system
+TODO: Split experimental changes into Git branch
+TODO: Find a way to visualize per-block number solution distributions
+TODO: Cache castle even/odd solutions for each w*h combo. Last space in last row can definitely be memoised
+TODO: Complete wrapper function for memoiseCastle
+TODO: Know which castles must be pre-calculated and add them in the correct order, Fibonacci-style.
 
 Completed improvements:
  * DONE: Eliminated need to create an exponential number of duplicate castles
@@ -41,29 +94,24 @@ Completed improvements:
  * DONE: Fixed algorithmic correctness. Previously, blocks were treated as if their placement order
           mattered for generating distinct castles. The order doesn't matter; the algorithm is now 
           much less complex.
-
-Efficiency:
- * Cache castle even/odd solutions for each w*h combo. Last space in last row can definitely be memoised
- * Complete wrapper function for memoiseCastle
- * Know which castles must be pre-calculated, add them in the correct order, fibonacci-style.
  */
 public class fivehundredtwo {
-    // width, height
-    private static Castle globalCastle = new Castle(4,13);
+    private static Castle globalCastle = new Castle(4, 13);
 
     /*
      * Purpose:
      *  cachedMovesRec[i] contains the moves available for a free space of size i that weren't available
      *   at the smaller size spaces.
      *   FORMAT: Move m(column, width)
-     *   e.g. at cachedMoves.get(1): (0,1), (1,1), (2,1), (3,1) for w=4
+     *   e.g. at cachedMoves.get(1): (0,1), (1,1), (2,1), (3,1) for w = 4
      */
     private static List<ArrayList<Move>> cachedMovesRec = new ArrayList<>(globalCastle.width+1);
 
     // IN PROGRESS: castleResults[x][y] stores even and odd solutions for castles of dimensions x by y (counting the base)
-    private static Result[][] castleResults = new Result[globalCastle.width+1][globalCastle.height+1];
-    // Set to 1000 as temporary number
-    private static int[][][] blockNumberResults = new int[globalCastle.width+1][globalCastle.height+1][1000];
+    private static Result[][] castleResults = new Result[globalCastle.width + 1][globalCastle.height + 1];
+    // For a given width and height, how do the solutions break down over the number of blocks used?
+    private static int[][][] blockNumberResults = new int[globalCastle.width + 1][globalCastle.height + 1]
+            [globalCastle.width*globalCastle.height];
 
     public static void main(String[] args) {
         prepCachedMovesRec();
@@ -71,67 +119,38 @@ public class fivehundredtwo {
                 globalCastle.height + "h castle:");
 
         int widthBound = globalCastle.width, heightBound = globalCastle.height;
-        System.out.println("Iterating over various castle sizes (whose dimensions do not exceed " + widthBound + " by " + heightBound + ")");
+        System.out.println("Iterating over various castle sizes (whose dimensions do not exceed "
+                + widthBound + " by " + heightBound + ")");
 
 
-        // iterate across a width value
-        for(int i=1; i <= widthBound; i++){
-            //System.out.print(i + "| ");
-            for(int j=1; j<=heightBound; j++){
-                if(j==1){
+        // Count castles from 1 to widthBound, 1 to heightBound
+        for(int i = 1; i <= widthBound; i++){
+            for(int j = 1; j <= heightBound; j++){
+                if(j == 1){
                     castleResults[i][j] = new Result(0, 1);
-                } else if(i==1){ // special case where we can predetermine results
-                    castleResults[i][j] = new Result((j+1)%2, j%2);
+                } else if(i == 1){ // special case where we can predetermine results
+                    castleResults[i][j] = new Result((j + 1) % 2, j % 2);
                 } else {
                     globalCastle = new Castle(i,j);
-                    castleResults[i][j] = memoiseCastleCorrect(0);
+                    globalCastle.display(false);
+                    castleResults[i][j] = enumerateCastleRec(0);
                 }
                 castleResults[i][j].display(); // integrate into function itself?
-                if(j<heightBound)
+                if(j < heightBound)
                     System.out.print("; ");
             }
             System.out.println();
         }
-
-        // iterate across a height value
-		/*for(int i=2; i <= heightBound; i++){
-			for(int j=1; j<=widthBound; j++){
-			System.out.println("W: " + j + " h: " + i);
-			if(j==1){ // special case where we can predetermine results
-				castleResults[j][i] = new Result((i+1)%2, i%2);
-			} else {
-				globalCastle = new Castle(j,i);
-				castleResults[j][i] = memoiseCastleCorrect(0);
-			}
-			castleResults[j][i].display(); // integrate into function itself?
-			}
-		System.out.println();
-		}*/
-		/*prepCachedMoves();
-		for(int i=1; i<=widthBound; i++){
-			for(int j=2; j<=heightBound; j++){
-				System.out.println("W: " + i + " h: " + j);
-				if(i==1){ // special case where we can predetermine results
-					castleResults[i][j] = new Result((j+1)%2, j%2);
-				} else {
-					globalCastle = new Castle(i,j);
-					castleResults[i][j] = memoiseCastle(0);
-				}
-				castleResults[i][j].display(); // integrate into function itself?
-				memoiseCastleCorrect(0).display();
-			}
-			System.out.println();
-		}*/
     }
 
     // Cache the moves for the current width of globalCastle
     private static void prepCachedMovesRec(){
-        cachedMovesRec = new ArrayList<>(globalCastle.width+1);
+        cachedMovesRec = new ArrayList<>(globalCastle.width + 1);
         cachedMovesRec.add(new ArrayList<>());
-        for(int size=1; size<=globalCastle.width; size++){
+        for(int size = 1; size <= globalCastle.width; size++){
             // initialize ArrayList of moves
             cachedMovesRec.add(new ArrayList<>());
-            for(int i=0; i<=globalCastle.width-size; i++)
+            for(int i = 0; i <= globalCastle.width-size; i++)
                 cachedMovesRec.get(size).add(new Move(i, size));
         }
     }
@@ -142,18 +161,18 @@ public class fivehundredtwo {
      *   globalCastle is a valid, existing castle.
      *   cachedMovesRec is generated.
      *  Post-conditions:
-     *   returns the number of satisfactory castles for the given starting configuratio.
+     *   returns the number of satisfactory castles for the given starting configuration.
+     *  DEBUGGING: also counts the odd-numbered solutions
      */
-    private static BigInteger enumerateCastleRec(int spaceIndex){
-        BigInteger sum = BigInteger.ZERO;
-        if(globalCastle.isEvenSolution())
-            sum = sum.add(BigInteger.ONE);
-
-        // Try advancing a row
-        if (globalCastle.canAdvance()){
-            globalCastle.advanceRow();
-            sum = sum.add(enumerateCastleRec(0));
-            globalCastle.retreatRow();
+    private static Result enumerateCastleRec(int spaceIndex){
+        Result sum = new Result();
+        if(globalCastle.isSolution()){
+            // Mark how solutions are distributed across number of blocks used
+            blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.getLastID()]++;
+            if(globalCastle.lastIDEven())
+                sum.incrementEven();
+            else
+                sum.incrementOdd();
         }
 
         if(globalCastle.canAddBlock()) {
@@ -164,22 +183,26 @@ public class fivehundredtwo {
                 int spaceSize = s.getWidth();
                 // Execute the possible moves
                 for(int first = 1; first <= spaceSize; first++)
-                    for(int second=0; second <= spaceSize - first; second++) {
+                    for(int second = 0; second <= spaceSize - first; second++) {
                         Move m = cachedMovesRec.get(first).get(second),
                                 // increment by current index; cachedMovesRec doesn't account for offset from current block
                                 nextMove = new Move(m.getIndex() + s.getIndex(), m.getWidth());
 
                         lastSpaceIndex = globalCastle.placeBlockUpdate(nextMove, spaceIndex);
-
-                        // ensure we move to the next space instead of repeating possibilities
                         if(globalCastle.skipSpace){
                             globalCastle.skipSpace = false;
-                            sum = sum.add(enumerateCastleRec(lastSpaceIndex+1));
+                            sum.addResult(enumerateCastleRec(lastSpaceIndex+1));
                         } else {
-                            sum = sum.add(enumerateCastleRec(lastSpaceIndex));
+                            sum.addResult(enumerateCastleRec(lastSpaceIndex));
                         }
                         globalCastle.removeBlockUpdate(nextMove, lastSpaceIndex);
                     }}}
+
+        if (globalCastle.canAdvance()){
+            globalCastle.advanceRow();
+            sum.addResult(enumerateCastleRec(0));
+            globalCastle.retreatRow();
+        }
 
         return sum;
     }
@@ -189,7 +212,7 @@ public class fivehundredtwo {
     private static Result memoiseCastleWrapper(int w, int h){
         // we can calculate this kind of castle by formula
         if(w == 1)
-            return new Result((h+1)%2, h%2);
+            return new Result((h + 1) % 2, h % 2);
         // set the globals
         // create the castle - add check
         globalCastle = new Castle(w, h);
@@ -239,9 +262,10 @@ public class fivehundredtwo {
                 } else {
                     // Execute the possible moves
                     for(int first = 1; first <= spaceSize; first++) {
-                        for(int second=0; second <= spaceSize - first; second++) {
+                        for(int second = 0; second <= spaceSize - first; second++) {
                             Move m = cachedMovesRec.get(first).get(second),
-                                    // increment by current index; cachedMovesRec doesn't account for offset from current block
+                                    /* increment by current index; cachedMovesRec doesn't account for offset from
+                                    current block */
                                     nextMove = new Move(m.getIndex() + s.getIndex(), m.getWidth());
                             lastSpaceIndex = globalCastle.placeBlockUpdate(nextMove, spaceIndex);
                             if(globalCastle.skipSpace){
@@ -257,50 +281,6 @@ public class fivehundredtwo {
 
         return sum;
     }
-
-    // DEBUGGING: a version of enumerateCastleRec that also counts up the odd-numbered solutions
-    private static Result memoiseCastleCorrect(int spaceIndex){
-        Result sum = new Result();
-        if(globalCastle.isSolution()){
-            blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.getLastID()]++;
-            if(globalCastle.lastIDEven())
-                sum.incrementEven();
-            else
-                sum.incrementOdd();
-        }
-
-        if(globalCastle.canAddBlock()) {
-            int lastSpaceIndex;
-
-            for(; spaceIndex < globalCastle.spacesInRow[globalCastle.current]; spaceIndex++){
-                Space s = globalCastle.spaces.get(globalCastle.current).get(spaceIndex);
-                int spaceSize = s.getWidth();
-                // Execute the possible moves
-                for(int first = 1; first <= spaceSize; first++)
-                    for(int second=0; second <= spaceSize - first; second++) {
-                        Move m = cachedMovesRec.get(first).get(second),
-                                // increment by current index; cachedMovesRec doesn't account for offset from current block
-                                nextMove = new Move(m.getIndex() + s.getIndex(), m.getWidth());
-
-                        lastSpaceIndex = globalCastle.placeBlockUpdate(nextMove, spaceIndex);
-                        if(globalCastle.skipSpace){
-                            globalCastle.skipSpace = false;
-                            sum.addResult(memoiseCastleCorrect(lastSpaceIndex+1));
-                        } else {
-                            sum.addResult(memoiseCastleCorrect(lastSpaceIndex));
-                        }
-                        globalCastle.removeBlockUpdate(nextMove, lastSpaceIndex);
-                    }}}
-
-        if (globalCastle.canAdvance()){
-            globalCastle.advanceRow();
-            sum.addResult(memoiseCastleCorrect(0));
-            globalCastle.retreatRow();
-        }
-
-        return sum;
-    }
-
 }
 
 class Castle{
@@ -328,13 +308,13 @@ class Castle{
         this.width = w;
         this.unavailableColumn = new boolean[this.width];
         this.height = h;
-        this.current = this.height-1;
+        this.current = this.height - 1;
         this.lastIDEven = true;
         this.lastID = 0;
         this.placedInRow = new int[this.height];
         this.spacesInRow = new int[this.height];
         this.spaces = new ArrayList<>(this.height);
-        for(int i=0; i<this.height; i++)
+        for(int i = 0; i < this.height; i++)
             this.spaces.add(new ArrayList<>());
         this.skipSpace = false;
         this.blocks = new boolean[this.height][this.width];
@@ -350,13 +330,13 @@ class Castle{
      * Returns index of first space (-1 if no spaces remain)
      */
     int placeBlockUpdate(Move m, int spaceIndex){
-        int leftSide = m.getIndex()-1, rightSide = m.getIndex()+m.getWidth(), returnVal;
+        int leftSide = m.getIndex() - 1, rightSide = m.getIndex() + m.getWidth(), returnVal;
 
         // Lay the block
         this.lastIDEven = !this.lastIDEven;
         this.lastID++;
 
-        for(int i=m.getIndex(); i<rightSide; i++)
+        for(int i = m.getIndex(); i < rightSide; i++)
             this.blocks[this.current][i] = true;
 
         // mark sides as unavailable
@@ -398,7 +378,7 @@ class Castle{
 
     // Removes the block and merges the surrounding space(s)
     void removeBlockUpdate(Move m, int spaceIndex){
-        int leftSide = m.getIndex()-1, rightSide = m.getIndex()+m.getWidth();
+        int leftSide = m.getIndex() - 1, rightSide = m.getIndex() + m.getWidth();
         boolean leftInBounds = leftSide >= 0, rightInBounds = rightSide < this.width,
                 leftSpaceFree = false, rightSpaceFree = false, // is there a zero two spaces to a side?
                 blockToLeft = false, blockToRight = false, // is there a block two spaces to a side?
@@ -406,21 +386,21 @@ class Castle{
 
         // Initializations
         if(leftInBounds){
-            leftOverhang = !this.blocks[this.current+1][leftSide]; // if nothing there
+            leftOverhang = !this.blocks[this.current + 1][leftSide]; // if nothing there
             if(leftSide > 0){
-                blockToLeft = this.blocks[this.current][leftSide-1];
+                blockToLeft = this.blocks[this.current][leftSide - 1];
                 // check for immediate overhang, see if the space in question would be suspended, and check for space
-                leftSpaceFree = !leftOverhang && this.blocks[this.current+1][leftSide-1] &&
-                        !blockToLeft && !this.unavailableColumn[leftSide-1];
+                leftSpaceFree = !leftOverhang && this.blocks[this.current + 1][leftSide - 1] &&
+                        !blockToLeft && !this.unavailableColumn[leftSide - 1];
             }
         }
 
         if(rightInBounds){
-            rightOverhang = !this.blocks[this.current+1][rightSide];
-            if(rightSide < this.width-1){
-                blockToRight = this.blocks[this.current][rightSide+1];
-                rightSpaceFree = !rightOverhang && this.blocks[this.current+1][rightSide+1] &&
-                        !blockToRight && !this.unavailableColumn[rightSide+1];
+            rightOverhang = !this.blocks[this.current + 1][rightSide];
+            if(rightSide < this.width - 1){
+                blockToRight = this.blocks[this.current][rightSide + 1];
+                rightSpaceFree = !rightOverhang && this.blocks[this.current + 1][rightSide + 1] &&
+                        !blockToRight && !this.unavailableColumn[rightSide + 1];
             }
         }
 
@@ -431,7 +411,7 @@ class Castle{
         // Remove the block
         this.lastIDEven = !this.lastIDEven;
         this.lastID--;
-        for(int i=m.getIndex(); i<rightSide; i++)
+        for(int i = m.getIndex(); i < rightSide; i++)
             this.blocks[this.current][i] = false;
 
         // Remove space above
@@ -452,12 +432,12 @@ class Castle{
 
         // use s as one of pre-existing spaces that will be merged
         Space s;
-        // width gets one added because if lb == rb == 0, it's a one-width block
+        // width gets incremented because if lb == rb == 0, it's a one-width block
         Space newSpace = new Space(leftSide, rightSide - leftSide + 1);
 
         if (leftSpaceFree || rightSpaceFree){
             s = this.spaces.get(this.current).get(spaceIndex);
-            if(leftSpaceFree){// is to left of move
+            if(leftSpaceFree){
                 newSpace.setIndex(s.getIndex());
                 newSpace.setWidth(newSpace.getWidth() + s.getWidth());
                 this.spaces.get(this.current).remove(spaceIndex);
@@ -485,7 +465,7 @@ class Castle{
      *  If a remove operation is desired, the space must be last in the LinkedList.
      */
     private void modifySpaceAbove(Move m, boolean addTrue){
-        int above = this.current-1;
+        int above = this.current - 1;
         if(above < 0)
             return;
         if(addTrue){
@@ -493,7 +473,7 @@ class Castle{
             this.spacesInRow[above]++;
         }
         else {
-            this.spaces.get(above).remove(spaces.get(above).size()-1);
+            this.spaces.get(above).remove(spaces.get(above).size() - 1);
             this.spacesInRow[above]--;
         }
     }
@@ -509,7 +489,7 @@ class Castle{
         int endIndex;
         for(Space s : this.spaces.get(this.current)){
             endIndex = s.getIndex() + s.getWidth();
-            for(int i=s.getIndex(); i < endIndex; i++)
+            for(int i = s.getIndex(); i < endIndex; i++)
                 this.unavailableColumn[i] = true;
         }
         this.current--;
@@ -528,7 +508,7 @@ class Castle{
         int endIndex;
         for(Space s : this.spaces.get(this.current)){
             endIndex = s.getIndex() + s.getWidth();
-            for(int i=s.getIndex(); i < endIndex; i++)
+            for(int i = s.getIndex(); i < endIndex; i++)
                 this.unavailableColumn[i] = false;
         }
     }
@@ -563,9 +543,9 @@ class Castle{
     // Display the castle
     public void display(boolean showSpaces){
         // Each row
-        for(int i=0; i<this.height; i++) {
+        for(int i = 0; i < this.height; i++) {
             // Each col
-            for(int j=0; j<width; j++){
+            for(int j = 0; j < width; j++){
                 if(this.blocks[i][j])
                     System.out.print("█");
                 else
@@ -594,9 +574,9 @@ class Castle{
     public void displayMove(Move m){
         int col = m.getIndex(), upper = col + m.getWidth();
         // Each row
-        for(int i=0; i<this.height; i++) {
+        for(int i = 0; i < this.height; i++) {
             // Each col
-            for(int j=0; j<this.width; j++){
+            for(int j = 0; j < this.width; j++){
                 if(this.current == i && j < upper && j >= col)
                     System.out.print("X");
                 else {
@@ -634,10 +614,6 @@ class Move {
 
     int getWidth(){
         return this.width;
-    }
-
-    public void printMove(){
-        System.out.println("Move: [index " + this.index + ", width " + this.width + "]");
     }
 }
 
@@ -754,3 +730,20 @@ class ResultTRIE{
             return this.children.get(list.remove(0)).getResult(list); // is this destructive of original list?
     }
 }
+
+// Data exploration - spare code
+
+// iterate across a height value
+		/*for(int i = 2; i <= heightBound; i++){
+			for(int j = 1; j <= widthBound; j++){
+			System.out.println("W: " + j + " h: " + i);
+			if(j == 1){ // special case where we can predetermine results
+				castleResults[j][i] = new Result((i + 1) % 2, i % 2);
+			} else {
+				globalCastle = new Castle(j,i);
+				castleResults[j][i] = memoiseCastleCorrect(0);
+			}
+			castleResults[j][i].display(); // integrate into function itself?
+			}
+		System.out.println();
+		}*/
