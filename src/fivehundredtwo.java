@@ -1,10 +1,3 @@
-import com.sun.corba.se.impl.orbutil.CorbaResourceUtil;
-import com.sun.org.apache.xpath.internal.SourceTree;
-
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.List;
-
 /*
 Project Euler: Problem 502 - https://projecteuler.net/problem=502
  
@@ -24,7 +17,7 @@ Let F(w, h) represent the number of valid castles, given grid parameters w and h
 For example, F(4, 2) = 10, F(13, 10) = 3729050610636, F(10, 13) = 37959702514, and F(100, 100) mod 1 000 000 007 =
 841913936."
 
-Lengthy explanation of approach and rationale:
+Explanation of approach and rationale:
 This problem deals with finding permutations on a w*h grid that meet a precise set of criteria (see 1-6 above). My
 proposed solution is wholly inadequate for finding (F(1012, 100) + F(10000, 10000) + F(100, 1012)) mod 1 000 000 007 -
 to my mind, no optimization would be enough. Due to the exponential nature of the castle's state space, I suspect
@@ -37,7 +30,7 @@ The basic idea is to start from a blank slate (dimensions: 3 x 3; X := block, - 
 
 XXX
 
-and take each option:
+and pursue each option:
       - -    -  - -  -
 XXX XX- -XX X-  -X-  -X
 XXX XXX XXX XXX XXX XXX
@@ -45,7 +38,8 @@ XXX XXX XXX XXX XXX XXX
 We maintain an ArrayList of spaces for both the current and next row, allowing constant-time building / removal
 spot location. After every move, we check to see if the current configuration satisfies the 6 criteria listed above.
 If it does, we add it to the sum tracked for the current iteration of the function, which is eventually returned and
-added to those found by the other branches pursued in this depth-first search of the castle space.
+added to those found by the other branches pursued in this depth-first exploration of the castle space. Since all
+operations are reversible, just one global Castle can be used to complete this depth-first process.
 
 The requisite functions are provided by the Castle class.
 
@@ -53,8 +47,13 @@ TODO: Split experimental changes into Git branch
 TODO: Find a way to visualize per-block number solution distributions
 TODO: Implement ResultTRIE
 TODO: Complete wrapper function for memoiseCastle
-TODO: Know which castles must be pre-calculated and add them in the correct order, Fibonacci-style
- */
+TODO: Determine the optimal order in which to memoise castles
+*/
+
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+
 public class fivehundredtwo {
     private static Castle globalCastle = new Castle(4, 13);
 
@@ -744,7 +743,7 @@ class Result{
  */
 class ResultTRIE{
     Result data;
-    ArrayList<ResultTRIE> children; // do array to test it works?
+    ArrayList<ResultTRIE> children; // do array to test if it works?
 
     // Cache a new result
     public ResultTRIE(Result toCache){
