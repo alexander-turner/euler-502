@@ -1,3 +1,6 @@
+import com.sun.corba.se.impl.orbutil.CorbaResourceUtil;
+import com.sun.org.apache.xpath.internal.SourceTree;
+
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,10 +99,12 @@ public class fivehundredtwo {
 
     private static void iterateCastles(int widthBound, int heightBound) {
         System.out.println("Iterating over castle sizes (dimensions not exceeding "
-                + widthBound + " by " + heightBound + ")");
+                + widthBound + " by " + heightBound + "; format: {solns. w/ even blocks, solns. w/ odd blocks})");
+        System.out.println("width |");
 
         // Count castles from 1 to widthBound, 1 to heightBound
         for(int i = 1; i <= widthBound; i++){
+            System.out.print("    " + i + " | ");
             for(int j = 1; j <= heightBound; j++){
                 if(j == 1){
                     castleResults[i][j] = new Result(0, 1);
