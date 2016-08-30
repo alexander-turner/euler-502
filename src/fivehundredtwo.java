@@ -97,6 +97,12 @@ public class fivehundredtwo {
         }
     }
 
+    /**
+     * Iterate over all Castle sizes in the provided ranges and display output.
+     *
+     * @param widthBound the maximum Castle width to calculate
+     * @param heightBound the maximum Castle height to calculate
+     */
     private static void iterateCastles(int widthBound, int heightBound) {
         System.out.println("Iterating over castle sizes (dimensions not exceeding "
                 + widthBound + " by " + heightBound + "; format: {solns. w/ even blocks, solns. w/ odd blocks})");
