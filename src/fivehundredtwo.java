@@ -24,10 +24,6 @@ Let F(w, h) represent the number of valid castles, given grid parameters w and h
 For example, F(4, 2) = 10, F(13, 10) = 3729050610636, F(10, 13) = 37959702514, and F(100, 100) mod 1 000 000 007 =
 841913936."
 
-Summary:
-The algorithm calculates the number of castles on a w*h grid which satisfy the above conditions.
-The algorithm must be fast enough to calculate (F(1012, 100) + F(10000, 10000) + F(100, 1012)) mod 1 000 000 007.
-
 Lengthy explanation of approach and rationale:
 This problem deals with finding permutations on a w*h grid that meet a precise set of criteria (see 1-6 above). My
 proposed solution is wholly inadequate for finding (F(1012, 100) + F(10000, 10000) + F(100, 1012)) mod 1 000 000 007 -
