@@ -76,13 +76,27 @@ public class fivehundredtwo {
 
     public static void main(String[] args) {
         prepCachedMovesRec();
-        System.out.println("Benchmarks for a " + globalCastle.width + "w x " +
-                globalCastle.height + "h castle:");
+        iterateCastles(globalCastle.width, globalCastle.height);
+    }
 
-        int widthBound = globalCastle.width, heightBound = globalCastle.height;
-        System.out.println("Iterating over various castle sizes (whose dimensions do not exceed "
+    /**
+     * Cache the moves for the current width of globalCastle.
+     */
+    private static void prepCachedMovesRec(){
+        cachedMovesRec = new ArrayList<>(globalCastle.width + 1);
+        cachedMovesRec.add(new ArrayList<>());
+
+        for(int size = 1; size <= globalCastle.width; size++){
+            // initialize ArrayList of moves
+            cachedMovesRec.add(new ArrayList<>());
+            for(int i = 0; i <= globalCastle.width-size; i++)
+                cachedMovesRec.get(size).add(new Move(i, size));
+        }
+    }
+
+    private static void iterateCastles(int widthBound, int heightBound) {
+        System.out.println("Iterating over castle sizes (dimensions not exceeding "
                 + widthBound + " by " + heightBound + ")");
-
 
         // Count castles from 1 to widthBound, 1 to heightBound
         for(int i = 1; i <= widthBound; i++){
@@ -95,25 +109,11 @@ public class fivehundredtwo {
                     globalCastle = new Castle(i,j);
                     castleResults[i][j] = enumerateCastleRec(0);
                 }
-                castleResults[i][j].display(); // integrate into function itself?
+                castleResults[i][j].display();
                 if(j < heightBound)
                     System.out.print("; ");
             }
             System.out.println();
-        }
-    }
-
-    /**
-     * Cache the moves for the current width of globalCastle.
-     */
-    private static void prepCachedMovesRec(){
-        cachedMovesRec = new ArrayList<>(globalCastle.width + 1);
-        cachedMovesRec.add(new ArrayList<>());
-        for(int size = 1; size <= globalCastle.width; size++){
-            // initialize ArrayList of moves
-            cachedMovesRec.add(new ArrayList<>());
-            for(int i = 0; i <= globalCastle.width-size; i++)
-                cachedMovesRec.get(size).add(new Move(i, size));
         }
     }
 
@@ -219,7 +219,7 @@ public class fivehundredtwo {
      * XX--- XX--X
      * XXXXX XXXXX
      *
-     * but also by each of the spaces (categorized by their width and the space above them. The spaces should be put
+     * but also by each of the spaces (categorized by their width and the space above them). The spaces should be put
      * into descending order by their width and then by their height. For A, the storage would be routed to
      * memoisedResults[2][5]; for B, to memoisedResults[1][5][1][3]. All spaces in the current castle must be taken
      * into consideration to accurately store and retrieve memoised data.
