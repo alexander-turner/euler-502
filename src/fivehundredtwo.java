@@ -183,11 +183,12 @@ public class fivehundredtwo {
         if(w == 1)
             return new Result((h + 1) % 2, h % 2);
         // set the globals
+
         // create the castle - add check
         globalCastle = new Castle(w, h);
         // pre-generate available moves - ADD check for whether already done
         prepCachedMovesRec();
-        // rock and roll
+
         return memoiseCastle(0);
     }
 
@@ -381,9 +382,6 @@ class Castle{
                     new Space(rightSide+1, s.getIndex() + s.getWidth() - rightSide - 1));
             this.spacesInRow[this.current]++;
         }
-
-        //if(originalSpaces < this.spacesInRow[this.current])
-        //	this.skipSpace = true;
 
         return newIndex;
     }
@@ -593,8 +591,7 @@ class Castle{
 
     private void displaySpaces(){
         System.out.println("Space list for the current row:");
-        for(Space s : this.spaces.get(this.current))
-            s.printSpace();
+        this.spaces.get(this.current).forEach(Space::printSpace);
     }
 }
 
