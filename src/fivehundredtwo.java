@@ -66,30 +66,30 @@ public class fivehundredtwo {
      *  Move m(column, width)
      *  e.g. at cachedMoves.get(1): (0,1), (1,1), (2,1), (3,1) for w = 4
      */
-    private static List<ArrayList<Move>> cachedMovesRec = new ArrayList<>(globalCastle.width+1);
+    private static List<ArrayList<Move>> cachedMovesRec = new ArrayList<>(globalCastle.getWidth()+1);
 
     // IN PROGRESS: castleResults[x][y] stores even and odd solutions for castles of dimensions x by y (counting the base)
-    private static Result[][] castleResults = new Result[globalCastle.width + 1][globalCastle.height + 1];
+    private static Result[][] castleResults = new Result[globalCastle.getWidth() + 1][globalCastle.getHeight() + 1];
     // For a given width and height, how do the solutions break down over the number of blocks used?
-    private static int[][][] blockNumberResults = new int[globalCastle.width + 1][globalCastle.height + 1]
-            [globalCastle.width*globalCastle.height];
+    private static int[][][] blockNumberResults = new int[globalCastle.getWidth() + 1][globalCastle.getHeight() + 1]
+            [globalCastle.getWidth()*globalCastle.getHeight()];
 
     public static void main(String[] args) {
         prepCachedMovesRec();
-        iterateCastles(globalCastle.width, globalCastle.height);
+        iterateCastles(globalCastle.getWidth(), globalCastle.getHeight());
     }
 
     /**
      * Cache the moves for the current width of globalCastle.
      */
     private static void prepCachedMovesRec(){
-        cachedMovesRec = new ArrayList<>(globalCastle.width + 1);
+        cachedMovesRec = new ArrayList<>(globalCastle.getWidth() + 1);
         cachedMovesRec.add(new ArrayList<>());
 
-        for(int size = 1; size <= globalCastle.width; size++){
+        for(int size = 1; size <= globalCastle.getWidth(); size++){
             // initialize ArrayList of moves
             cachedMovesRec.add(new ArrayList<>());
-            for(int i = 0; i <= globalCastle.width-size; i++)
+            for(int i = 0; i <= globalCastle.getWidth()-size; i++)
                 cachedMovesRec.get(size).add(new Move(i, size));
         }
     }
@@ -135,7 +135,7 @@ public class fivehundredtwo {
          */
         if(globalCastle.areBlocksInLastRow()){
             // Mark how solutions are distributed across number of blocks used
-            blockNumberResults[globalCastle.width][globalCastle.height][globalCastle.getLastID()]++;
+            blockNumberResults[globalCastle.getWidth()][globalCastle.getHeight()][globalCastle.getLastID()]++;
             if(globalCastle.lastIDEven())
                 sum.incrementEven();
             else
@@ -145,8 +145,8 @@ public class fivehundredtwo {
         if(globalCastle.canAddBlock()) {
             int lastSpaceIndex;
 
-            for(; spaceIndex < globalCastle.spacesInRow[globalCastle.current]; spaceIndex++){
-                Space s = globalCastle.spaces.get(globalCastle.current).get(spaceIndex);
+            for(; spaceIndex < globalCastle.getSpacesInRow(globalCastle.getCurrent()); spaceIndex++){
+                Space s = globalCastle.getSpace(spaceIndex);
                 int spaceSize = s.getWidth();
                 // Execute the possible moves
                 for(int first = 1; first <= spaceSize; first++)
@@ -156,8 +156,10 @@ public class fivehundredtwo {
                                 nextMove = new Move(m.getIndex() + s.getIndex(), m.getWidth());
 
                         lastSpaceIndex = globalCastle.placeBlockUpdate(nextMove, spaceIndex);
-                        if(globalCastle.skipSpace){
-                            globalCastle.skipSpace = false;
+
+                        // Time to leave current space alone and proceed to next in list
+                        if(globalCastle.getSkipSpace()){
+                            globalCastle.setSkipSpace(false);
                             sum.addResult(enumerateCastleRec(lastSpaceIndex+1));
                         } else {
                             sum.addResult(enumerateCastleRec(lastSpaceIndex));
@@ -245,12 +247,12 @@ public class fivehundredtwo {
         if(globalCastle.canAddBlock()) {
             int lastSpaceIndex;
 
-            for(; spaceIndex < globalCastle.spacesInRow[globalCastle.current]; spaceIndex++){
-                Space s = globalCastle.spaces.get(globalCastle.current).get(spaceIndex);
+            for(; spaceIndex < globalCastle.getSpacesInRow(globalCastle.getCurrent()); spaceIndex++){
+                Space s = globalCastle.getSpace(spaceIndex);
 
                 int spaceSize = s.getWidth();
                 // go down a row to include the square and compensate for indexing by 0
-                int projectedHeight = globalCastle.current + 2;
+                int projectedHeight = globalCastle.getCurrent() + 2;
 
                 // check to see if we already know the results
                 // Usage seems to be correct when it's called, so perhaps it has to do with the flow
@@ -269,8 +271,8 @@ public class fivehundredtwo {
                                     current block */
                                     nextMove = new Move(m.getIndex() + s.getIndex(), m.getWidth());
                             lastSpaceIndex = globalCastle.placeBlockUpdate(nextMove, spaceIndex);
-                            if(globalCastle.skipSpace){
-                                globalCastle.skipSpace = false;
+                            if(globalCastle.getSkipSpace()){
+                                globalCastle.setSkipSpace(false);
                                 sum.addResult(memoiseCastle(lastSpaceIndex+1));
                             } else {
                                 sum.addResult(memoiseCastle(lastSpaceIndex));
@@ -288,16 +290,16 @@ public class fivehundredtwo {
  * A robust interface for generating and manipulating Castles.
  */
 class Castle{
-    int height, width;
-    int current; // the current row index
+    private int height, width;
+    private int current; // the current row index (base of castle at height-1, top at 0)
     private int lastID; // the ID of the last block placed
     private int placedInRow[]; // how many blocks have been placed in each row
-    int spacesInRow[]; // how many spaces are in each row
-    boolean skipSpace; // global flag for knowing when to move to next space
+    private int spacesInRow[]; // how many spaces are in each row
+    private boolean skipSpace; // flag for knowing when to move to next space
     private boolean lastIDEven; // track whether the ID of the last block placed is even
-    private boolean unavailableColumn[]; // Tracks columns that aren't available - saves up to height operations / call
-    List<ArrayList<Space>> spaces; // track available spaces for each level - update while placing / removing blocks
-    private boolean[][] blocks; // True if a block exists there.
+    private boolean unavailableColumn[]; // tracks columns that aren't available - saves up to height operations / call
+    private List<ArrayList<Space>> spaces; // track available spaces for each level - update while modifying blocks
+    private boolean[][] blocks; // true if block exists
 
     /**
      * Construct a Castle with the bottom row filled in.
@@ -504,11 +506,21 @@ class Castle{
         this.current++;
     }
 
+    int getWidth() { return this.width; }
+
+    int getHeight() { return this.height; }
+
+    int getCurrent() { return this.current; }
+
     int getLastID() { return this.lastID; }
 
     boolean lastIDEven(){
         return this.lastIDEven;
     }
+
+    boolean getSkipSpace() { return this.skipSpace; }
+
+    void setSkipSpace(boolean val) { this.skipSpace = val; }
 
     boolean areBlocksInLastRow(){
         return this.placedInRow[0] > 0;
@@ -525,6 +537,10 @@ class Castle{
     boolean isOddSolution(){
         return this.areBlocksInLastRow() && !this.lastIDEven();
     }
+
+    int getSpacesInRow(int row) { return this.spacesInRow[row]; }
+
+    Space getSpace(int spaceIndex) { return this.spaces.get(this.current).get(spaceIndex); }
 
     boolean canAddBlock(){
         return this.spacesInRow[this.current] > 0;
