@@ -738,8 +738,8 @@ class Result{
  * XXXX
  *
  * The TRIE will be accessed by sorting the spaces into descending order (by width and then by height, including
- * includes the base block below the given space): memoisedResults[w1][h1][w2][h2]. Thus, the above castle can be
- * represented by [2][4][1][3].
+ * the base block below the given space): memoisedResults[w1][h1][w2][h2]. Thus, the above castle can be represented 
+ * by [2][4][1][3].
  */
 class ResultTRIE{
     Result data;
